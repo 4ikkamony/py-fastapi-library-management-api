@@ -7,27 +7,36 @@ import schemas
 
 
 async def get_author_list(db: AsyncSession):
-    result = await db.execute(
-        select(models.Author).options(selectinload(models.Author.books))
-    )
+    query = select(models.Author).options(selectinload(models.Author.books))
+    result = await db.execute(query)
     authors = result.scalars().all()
     return authors
 
 
 async def get_author(db: AsyncSession, author_id: int):
-    result = await db.execute(
-        select(models.Author).options(selectinload(models.Author.books)).where(models.Author.id == author_id)
+    query = (
+        select(models.Author)
+        .options(selectinload(models.Author.books))
+        .where(models.Author.id == author_id)
     )
+
+    result = await db.execute(query)
+
     author = result.scalar_one_or_none()
+
     return author
 
 
 async def add_author(db: AsyncSession, author: schemas.AuthorCreate):
-    new_author = models.Author(
+    query = insert(models.Author).values(
         name=author.name,
         bio=author.bio,
     )
-    db.add(new_author)
+
+    result = await db.execute(query)
+
     await db.commit()
-    await db.refresh(new_author)
-    return new_author
+
+    response = {**author.model_dump(), "id": result.lastrowid}
+
+    return response

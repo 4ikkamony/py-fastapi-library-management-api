@@ -17,26 +17,36 @@ async def get_book_list(
 
     if author_id is not None:
         query = query.where(models.Book.author_id == author_id)
+
     query = query.offset(skip).limit(limit)
+
     result = await db.execute(query)
     books = result.scalars().all()
+
     return books
 
 
 async def get_book(db: AsyncSession, book_id: int):
-    result = await db.execute(select(models.Book).where(models.Book.id == book_id))
+    query = select(models.Book).where(models.Book.id == book_id)
+
+    result = await db.execute(query)
+
     book = result.scalar_one_or_none()
+
     return book
 
 
 async def add_book(db: AsyncSession, book: schemas.BookCreate):
-    new_book = models.Book(
+    query = insert(models.Book).values(
         title=book.title,
         summary=book.summary,
-        publication_date=book.publication_date,
         author_id=book.author_id,
     )
-    db.add(new_book)
+
+    result = await db.execute(query)
+
     await db.commit()
-    await db.refresh(new_book)
-    return new_book
+
+    response = {**book.model_dump(), "id": result.lastrowid}
+
+    return response
